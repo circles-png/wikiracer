@@ -5,6 +5,7 @@ use scraper::{Html, Selector};
 use std::collections::{HashMap, VecDeque};
 
 fn get_articles() -> (String, String) {
+    println!("prompting for articles...");
     let prompt = Text::new("")
         .with_initial_value("https://en.wikipedia.org/wiki/")
         .with_placeholder("https://en.wikipedia.org/wiki/");
@@ -20,10 +21,13 @@ fn get_articles() -> (String, String) {
         prompt.prompt()
     }
     .expect("end article should be able to be read");
+    println!("done!");
     (start, end)
 }
 
 fn get_links(page: &String) -> Vec<String> {
+    println!("getting links from {}...", page);
+    println!("parsing page...");
     let html = Html::parse_document(
         get(page)
             .expect("page should be able to be read")
@@ -31,11 +35,14 @@ fn get_links(page: &String) -> Vec<String> {
             .expect("page text should be able to be read")
             .as_str(),
     );
+    println!("getting base url...");
     let base_url = page
         .split("/wiki/")
         .next()
         .expect("page should have a base url");
-    html.select(&Selector::parse("p a[href]").expect("selector parsing should work"))
+    println!("finding links...");
+    let links = html
+        .select(&Selector::parse("p a[href]").expect("selector parsing should work"))
         .filter_map(|link| {
             if link
                 .value()
@@ -52,10 +59,14 @@ fn get_links(page: &String) -> Vec<String> {
                 None
             }
         })
-        .collect()
+        .collect();
+    println!("done!");
+    links
 }
 
 fn check_articles(start: &String, end: &String) {
+    println!("checking articles...");
+    println!("getting languages...");
     let mut languages = Vec::new();
     for page in [start, end] {
         let language = Regex::new(r"https://([a-z]{2,3})\.wikipedia\.org/wiki/")
@@ -70,13 +81,16 @@ fn check_articles(start: &String, end: &String) {
         }
         get(page).expect("page should be able to be read");
     }
+    println!("checking languages...");
     if languages.len() > 1 {
         panic!("start and end articles should be in the same language")
     }
-    if get_links(start).len() == 0 {
+    println!("checking start article...");
+    if get_links(start).is_empty() {
         panic!("start article should have links")
     }
 
+    println!("checking end article...");
     if Html::parse_document(
         get(end)
             .unwrap()
@@ -93,15 +107,17 @@ fn check_articles(start: &String, end: &String) {
     {
         panic!("end article should not be an orphan")
     }
+    println!("done!");
 }
 
-fn find_shortest_path(start: &String, end: &String) -> Option<Vec<String>> {
+fn find_shortest_path(start: &str, end: &String) -> Option<Vec<String>> {
+    println!("finding shortest path...");
     let mut path = HashMap::new();
-    path.insert(start.clone(), vec![start.clone()]);
+    path.insert(start.to_owned(), vec![start.to_owned()]);
     let mut queue = VecDeque::new();
-    queue.push_back(start.clone());
+    queue.push_back(start.to_owned());
 
-    while queue.len() != 0 {
+    while !queue.is_empty() {
         let page = queue.pop_front().expect("queue should not be empty");
         let links = get_links(&page);
 
@@ -112,9 +128,7 @@ fn find_shortest_path(start: &String, end: &String) -> Option<Vec<String>> {
                     let mut links: Vec<String> = path
                         .get(&page)
                         .expect("page should be in path")
-                        .iter()
-                        .map(|s| s.clone().clone())
-                        .collect();
+                        .to_vec();
                     links.push(link);
                     Some(links)
                 };
@@ -125,9 +139,7 @@ fn find_shortest_path(start: &String, end: &String) -> Option<Vec<String>> {
                     let mut links: Vec<String> = path
                         .get(&page)
                         .expect("page should be in path")
-                        .iter()
-                        .map(|s| s.clone())
-                        .collect();
+                        .to_vec();
                     links.push(link.clone());
                     links
                 });
@@ -141,6 +153,7 @@ fn find_shortest_path(start: &String, end: &String) -> Option<Vec<String>> {
 }
 
 fn redirected(page: &String) -> String {
+    println!("redirecting {}...", page);
     let html = Html::parse_document(
         get(page)
             .unwrap()
@@ -155,13 +168,14 @@ fn redirected(page: &String) -> String {
         .text()
         .next()
         .expect("title text should exist");
-    let title = title.replace(" ", "_");
+    let title = title.replace(' ', "_");
     let base_url = page
         .split("/wiki/")
         .next()
         .expect("page should have a base url")
         .to_owned()
         + "/wiki/";
+    println!("done!");
     format!("{}{}", base_url, title)
 }
 
@@ -173,6 +187,6 @@ fn main() {
         "shortest path: {}",
         find_shortest_path(&start, &redirected(&end))
             .unwrap_or(vec!["no path found".to_string()])
-            .join(" ->")
+            .join("\n    to ")
     );
 }
