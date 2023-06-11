@@ -15,5 +15,5 @@ jobs:
     - uses: actions/upload-artifact@v3.1.2
       with:
         name: wikiracer
-        path: ./target/release/wikiracer
+        path: target/release/wikiracer
         if-no-files-found: error
