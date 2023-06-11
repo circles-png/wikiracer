@@ -11,7 +11,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --release
     - uses: actions/upload-artifact@v3.1.2
       with:
         name: wikiracer
